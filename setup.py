@@ -4,7 +4,7 @@ from distutils.core import setup
 
 import setuptools
 
-setuptools.setup(
+setup(
     name="pybuienalarm",
     version="0.0.11",  # Should be updated with new versions
     author="Giel Janssens",
