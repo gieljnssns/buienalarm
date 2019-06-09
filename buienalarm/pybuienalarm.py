@@ -13,7 +13,7 @@ LOG = logging.getLogger(__name__)
 
 class Buienalarm:
     """
-    Buienalarm
+    Buienalarm class
     """
 
     """
