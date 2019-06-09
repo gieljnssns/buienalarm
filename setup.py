@@ -18,4 +18,5 @@ setup(
     license="MIT",
     description="Simple API to access Buienalarm data. ",
     long_description=open("README.md").read(),
+    install_requires=['requests']
 )

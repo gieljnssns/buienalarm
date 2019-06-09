@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# import json
-# import subprocess
 from datetime import datetime
 from datetime import timedelta
 import time
@@ -28,131 +26,89 @@ class Buienalarm:
     __API_URL = __API_DOMAIN + __API_VERSION + __API_PARAMETERS
     __REQUEST_URL = "https://cdn-secure.buienalarm.nl/api/3.4/forecast.php"
 
-    def __init__(self, lon=None, lat=None, region='nl', unit='mm/h', timeframe=60):
+    def __init__(self, lon=None, lat=None, region='nl', unit='mm/u', timeframe=60):
         self.lon = lon
         self.lat = lat
         self.region = region
         self.unit = unit
-        self.precip = {}
+        self.precipitation = {}
         self.total = 0
         self.timeframe = int(timeframe / 5)
-        
-    # def get_precipitation(self):
-    #     """   """
-    #     values = getdata(self.__API_URL.format(
-    #         self.lat, self.lon, self.region))
-    #     print(self.__API_URL.format(
-    #         self.lat, self.lon, self.region))
-    #     if values["success"] is False:
-    #         LOG.error(values.get("reason"))
-    #     else:
-    #         return values
+        self.renew = None
+        self.data = None
+        self.update()
 
-    def get_data(self):
-        """ """
+    def get_precipitation_now(self):
+        """Get the amount of precipitation on this moment"""
+        if self.renew < time.time():
+            self.update()
+        return self.precipitation[1]
+
+    def get_temperature(self):
+        """Get the temperature on this moment"""
+        if self.renew < time.time():
+            self.update()
+        return self.data["temp"]
+
+    def get_precipitation_forecast_total(self):
+        """Get the total expected precipitation within the time-frame"""
+        if self.renew < time.time():
+            self.update()
+        return round(self.total / 12, 2)
+
+    def get_precipitation_forecast_average(self):
+        """Get the average expected precipitation within the time-frame"""
+        if self.renew < time.time():
+            self.update()
+        return round(self.total / self.timeframe, 2)
+
+    def update(self):
+        """Update the buienalarm data"""
         payload = {
             "lat": self.lat,
             "lon": self.lon,
             "region": self.region,
             "unit": self.unit,
         }
-
         try:
             resp = requests.get(self.__REQUEST_URL, params=payload)
-            # print(resp.url)
+            LOG.debug(resp.url)
             data = resp.json()
             if data["success"] is False:
                 LOG.error(data.get("reason"))
             else:
-                return data
+                self.data = data
         except requests.exceptions.RequestException as e:
             LOG.error("Request for buienalarm failed due ", e)
-            return None
 
-    def get_precipitation(self):
-        """ """
-        data = self.get_data()
-        precip = data.get("precip", [])
-        t = data.get("start_human")
+        LOG.debug(self.data)
+
+        precip = self.data["precip"]
+        self.renew = int(self.data["start"] + 670)
+        t = self.data["start_human"]
         now = datetime.now()
-        startdata = now.strftime("%Y-%m-%d") + " " + t
+        start_data = now.strftime("%Y-%m-%d") + " " + t
 
         # Avoid bug in Python
         try:
-            brDT = datetime.strptime(startdata, "%Y-%m-%d %H:%M")
+            t = datetime.strptime(start_data, "%Y-%m-%d %H:%M")
         except TypeError:
-            brDT = datetime(
-                *(time.strptime(startdata, "%Y-%m-%d %H:%M")[0:6]))
+            t = datetime(
+                *(time.strptime(start_data, "%Y-%m-%d %H:%M")[0:6]))
 
         i = 0
         j = 0
-        print(precip)
 
         for p in precip:
-            dt = brDT + timedelta(minutes=i * 5)
+            dt = t + timedelta(minutes=i * 5)
 
             i += 1
             # We are sometimes also getting 'old' data. Skip this!
-            if dt >= now:
-                if j < self.timeframe:
-                    j += 1
-                    # print(p)
-                    self.precip[int(j)] = float(p)
+            if dt >= now and j < self.timeframe:
+                j += 1
+                self.precipitation[int(j)] = float(p)
 
-        return self.precip
+        LOG.debug("self.precipitation", self.precipitation)
+        print("self.precipitation", self.precipitation)
 
-    def get_temperature(self):
-        """ """
-        return self.get_data()
-
-    def total_precipitation(self):
-        """ """
-        self.get_precipitation()
-        self.total = round(sum(p for p in self.precip.values()), 2)
-
-        return self.total
-
-    def average_precipitation(self):
-        """ """
-        total = self.total_precipitation
-        return round(total / self.timeframe, 2)
-
-
-# def get_data(self):
-#     payload = {
-#             "lat": self.lat,
-#             "lon": self.lon,
-#             "region": self.region,
-#             "unit": self.unit,
-#         }
-#
-#     try:
-#         resp = requests.get(self.__REQUEST_URL, params=payload)
-#         print(resp.url)
-#         data = resp.json()
-#         return data
-#     except requests.exceptions.RequestException as e:
-#         LOG.error("Request for buienalarm failed due ", e)
-#         return None
-#
-# def getdata(url):
-#     command = "curl -X GET "
-#     options = "'" + url + "'"
-#     p = subprocess.Popen(command + " " + options,
-#                          shell=True, stdout=subprocess.PIPE)
-#     p.wait()
-#     data, errors = p.communicate()
-#     if p.returncode != 0:
-#         LOG.error("Request for buienalarm failed")
-#         values = {}
-#     else:
-#         values = json.loads(data.decode("utf-8"))
-#     return values
-
-
-# Vervallen?
-def value2mmph(value):
-    if value > 0:
-        return round(10 ** ((value - 109) / 32), 1)
-    else:
-        return 0
+        self.total = round(sum(p for p in self.precipitation.values()), 2)
