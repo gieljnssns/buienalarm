@@ -109,6 +109,5 @@ class Buienalarm:
                 self.precipitation[int(j)] = float(p)
 
         LOG.debug("self.precipitation", self.precipitation)
-        print("self.precipitation", self.precipitation)
 
         self.total = round(sum(p for p in self.precipitation.values()), 2)
