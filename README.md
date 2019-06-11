@@ -31,3 +31,8 @@ $ pip install pybuienalarm
     
     # get the average expected precipitation within the time-frame
     print b.get_precipitation_forecast_average()
+
+
+
+## Thanks to
+https://github.com/Xorfor since this packet is based on https://github.com/Xorfor/Domoticz-Buienalarm-Plugin
