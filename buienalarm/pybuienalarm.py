@@ -73,15 +73,16 @@ class Buienalarm:
         try:
             resp = requests.get(self.__REQUEST_URL, params=payload)
             LOG.debug(resp.url)
-            data = resp.json()
-            if data["success"] is False:
-                LOG.error(data.get("reason"))
-            else:
-                self.data = data
+            try:
+                data = resp.json()
+                if data["success"] is False:
+                    LOG.error(data.get("reason"))
+                else:
+                    self.data = data
+            except json.decoder.JSONDecodeError:
+                LOG.error("Request for buienalarm failed due non JSON response")
         except requests.exceptions.RequestException as e:
             LOG.error("Request for buienalarm failed due ", e)
-
-        LOG.debug(self.data)
 
         precip = self.data["precip"]
         self.renew = int(self.data["start"] + 670)
