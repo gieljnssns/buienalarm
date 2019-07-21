@@ -32,12 +32,25 @@ class Buienalarm:
         self.region = region
         self.unit = unit
         self.precipitation = {}
+        self.start_timestamp = 0
         self.total = 0
         self.timeframe = int(timeframe / 5)
         self.renew = None
         self.data = None
         self.update()
 
+    def get_forecast(self):
+        """Get the temperature on this moment"""
+        if self.renew < time.time():
+            self.update()
+        return self.data["precipitation"]
+    
+    def get_forecast_timestamp(self):
+        """Get the temperature on this moment"""
+        if self.renew < time.time():
+            self.update()
+        return self.data["start_timestamp"]
+    
     def get_precipitation_now(self):
         """Get the amount of precipitation on this moment"""
         if self.renew < time.time():
@@ -101,7 +114,8 @@ class Buienalarm:
 
         for p in precip:
             dt = t + timedelta(minutes=i * 5)
-
+            if j == 0:
+                start_timestamp = dt
             i += 1
             # We are sometimes also getting 'old' data. Skip this!
             if dt >= now and j < self.timeframe:
