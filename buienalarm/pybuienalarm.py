@@ -33,7 +33,6 @@ class Buienalarm:
         self.region = region
         self.unit = unit
         self.precipitation = {}
-        self.start_timestamp = 0
         self.total = 0
         self.timeframe = int(timeframe / 5)
         self.renew = None
