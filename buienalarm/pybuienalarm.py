@@ -4,6 +4,7 @@
 from datetime import datetime
 from datetime import timedelta
 import time
+import json
 import logging
 
 import requests
@@ -43,13 +44,7 @@ class Buienalarm:
         """Get the temperature on this moment"""
         if self.renew < time.time():
             self.update()
-        return self.data["precipitation"]
-    
-    def get_forecast_timestamp(self):
-        """Get the temperature on this moment"""
-        if self.renew < time.time():
-            self.update()
-        return self.data["start_timestamp"]
+        return json.dumps([ v for v in self.precipitation.values() ])
     
     def get_precipitation_now(self):
         """Get the amount of precipitation on this moment"""
@@ -114,11 +109,10 @@ class Buienalarm:
 
         for p in precip:
             dt = t + timedelta(minutes=i * 5)
-            if j == 0:
-                start_timestamp = dt
             i += 1
             # We are sometimes also getting 'old' data. Skip this!
             if dt >= now and j < self.timeframe:
+
                 j += 1
                 self.precipitation[int(j)] = float(p)
 
