@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='pybuienalarm',
-    version='0.0.3',
+    version='0.0.4',
     packages=['buienalarm'],
     url='https://github.com/gieljnssns/buienalarm',
     license='MIT',
