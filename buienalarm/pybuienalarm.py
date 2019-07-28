@@ -40,10 +40,10 @@ class Buienalarm:
         self.update()
 
     def get_forecast(self):
-        """Get the temperature on this moment"""
+        """Get the precipitation forecast"""
         if self.renew < time.time():
             self.update()
-        return json.dumps([ v for v in self.precipitation.values() ])
+        return json.dumps([v for v in self.precipitation.values()])
     
     def get_precipitation_now(self):
         """Get the amount of precipitation on this moment"""
