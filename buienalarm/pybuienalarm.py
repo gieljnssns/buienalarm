@@ -27,7 +27,7 @@ class Buienalarm:
     __API_URL = __API_DOMAIN + __API_VERSION + __API_PARAMETERS
     __REQUEST_URL = "https://cdn-secure.buienalarm.nl/api/3.4/forecast.php"
 
-    def __init__(self, lon=None, lat=None, region='nl', unit='mm/u', timeframe=60):
+    def __init__(self, lon=None, lat=None, region="nl", unit="mm/u", timeframe=60):
         self.lon = lon
         self.lat = lat
         self.region = region
@@ -44,7 +44,7 @@ class Buienalarm:
         if self.renew < time.time():
             self.update()
         return json.dumps([v for v in self.precipitation.values()])
-    
+
     def get_precipitation_now(self):
         """Get the amount of precipitation on this moment"""
         if self.renew < time.time():
@@ -91,7 +91,7 @@ class Buienalarm:
         LOG.debug(self.data)
 
         precip = self.data["precip"]
-        self.renew = int(self.data["start"] + 670)
+        self.renew = int(self.data["start"] + 850)
         t = self.data["start_human"]
         now = datetime.now()
         start_data = now.strftime("%Y-%m-%d") + " " + t
@@ -100,8 +100,7 @@ class Buienalarm:
         try:
             t = datetime.strptime(start_data, "%Y-%m-%d %H:%M")
         except TypeError:
-            t = datetime(
-                *(time.strptime(start_data, "%Y-%m-%d %H:%M")[0:6]))
+            t = datetime(*(time.strptime(start_data, "%Y-%m-%d %H:%M")[0:6]))
 
         i = 0
         j = 0
