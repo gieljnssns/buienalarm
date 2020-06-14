@@ -4,3 +4,4 @@ venv/
 /dist
 /pybuienalarm.egg-info
 /build
+.vscode/
