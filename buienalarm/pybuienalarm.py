@@ -86,34 +86,35 @@ class Buienalarm:
             else:
                 self.data = data
         except requests.exceptions.RequestException as e:
-            LOG.error("Request for buienalarm failed due ", e)
+            LOG.error(e)
 
         LOG.debug(self.data)
 
-        precip = self.data["precip"]
-        self.renew = int(self.data["start"] + 850)
-        t = self.data["start_human"]
-        now = datetime.now()
-        start_data = now.strftime("%Y-%m-%d") + " " + t
+        if self.data is not None:
+            precip = self.data["precip"]
+            self.renew = int(self.data["start"] + 850)
+            t = self.data["start_human"]
+            now = datetime.now()
+            start_data = now.strftime("%Y-%m-%d") + " " + t
 
-        # Avoid bug in Python
-        try:
-            t = datetime.strptime(start_data, "%Y-%m-%d %H:%M")
-        except TypeError:
-            t = datetime(*(time.strptime(start_data, "%Y-%m-%d %H:%M")[0:6]))
+            # Avoid bug in Python
+            try:
+                t = datetime.strptime(start_data, "%Y-%m-%d %H:%M")
+            except TypeError:
+                t = datetime(*(time.strptime(start_data, "%Y-%m-%d %H:%M")[0:6]))
 
-        i = 0
-        j = 0
+            i = 0
+            j = 0
 
-        for p in precip:
-            dt = t + timedelta(minutes=i * 5)
-            i += 1
-            # We are sometimes also getting 'old' data. Skip this!
-            if dt >= now and j < self.timeframe:
+            for p in precip:
+                dt = t + timedelta(minutes=i * 5)
+                i += 1
+                # We are sometimes also getting 'old' data. Skip this!
+                if dt >= now and j < self.timeframe:
 
-                j += 1
-                self.precipitation[int(j)] = float(p)
+                    j += 1
+                    self.precipitation[int(j)] = float(p)
 
-        LOG.debug("self.precipitation", self.precipitation)
+            LOG.debug(self.precipitation)
 
-        self.total = round(sum(p for p in self.precipitation.values()), 2)
+            self.total = round(sum(p for p in self.precipitation.values()), 2)
