@@ -80,11 +80,14 @@ class Buienalarm:
         try:
             resp = requests.get(self.__REQUEST_URL, params=payload)
             LOG.debug(resp.url)
-            data = resp.json()
-            if data["success"] is False:
-                LOG.error(data.get("reason"))
+            if resp.ok:
+                data = resp.json()
+                if data["success"] is False:
+                    LOG.error(data.get("reason"))
+                else:
+                    self.data = data
             else:
-                self.data = data
+                LOG.error("Failed to get a response from Buienalarm. Response code: " + str(resp.status_code))
         except requests.exceptions.RequestException as e:
             LOG.error(e)
 
