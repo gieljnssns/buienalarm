@@ -37,7 +37,6 @@ class Buienalarm:
         self.timeframe = int(timeframe / 5)
         self.renew = -1
         self.data = None
-        self.update()
 
     def get_forecast(self):
         """Get the precipitation forecast"""
