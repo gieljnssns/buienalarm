@@ -35,7 +35,7 @@ class Buienalarm:
         self.precipitation = {}
         self.total = 0
         self.timeframe = int(timeframe / 5)
-        self.renew = None
+        self.renew = -1
         self.data = None
         self.update()
 
