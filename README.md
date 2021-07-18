@@ -19,18 +19,21 @@ $ pip install pybuienalarm
     # create a new buienalarm instance
     b = Buienalarm(
         longitude, latitude, timeframe)
+
+    # fetch data
+    b.update()
     
     # get current precipitation
-    print b.get_precipitation_now()
+    print b.precipitation_now
     
     # get current temperature
-    print b.get_temperature()
+    print b.temperature
     
     # get the total expected precipitation within the time-frame
-    print b.get_precipitation_forecast_total()
+    print b.precipitation_forecast_total
     
     # get the average expected precipitation within the time-frame
-    print b.get_precipitation_forecast_average()
+    print b.precipitation_forecast_average
 
 
 

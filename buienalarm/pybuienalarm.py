@@ -1,122 +1,143 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+"""Buienalarm API."""
 
-from datetime import datetime
-from datetime import timedelta
-import time
-import json
+from datetime import datetime, timedelta
+from typing import Any, List, Mapping, NamedTuple, Optional
 import logging
 
 import requests
 
-LOG = logging.getLogger(__name__)
+
+PrecipitationAt = NamedTuple(
+    "PrecipitationAt",
+    [
+        ("timestamp", datetime),
+        ("value", float),
+    ])
+
+
+_LOGGER = logging.getLogger(__name__)
+
+API_TIMEOUT = timedelta(seconds=10)
 
 
 class Buienalarm:
     """
-    Buienalarm class
-    """
+    Buienalarm class.
 
-    """
     Full url:
     https://cdn-secure.buienalarm.nl/api/3.4/forecast.php?lat={}&lon={}&region=nl&unit=mm/u
     """
-    __API_DOMAIN = "https://cdn-secure.buienalarm.nl/api/"
-    __API_VERSION = "3.4"
-    __API_PARAMETERS = "/forecast.php?lat={}&lon={}&region={}&unit=mm/u"
-    __API_URL = __API_DOMAIN + __API_VERSION + __API_PARAMETERS
     __REQUEST_URL = "https://cdn-secure.buienalarm.nl/api/3.4/forecast.php"
 
-    def __init__(self, lon=None, lat=None, region="nl", unit="mm/u", timeframe=60):
+    def __init__(
+        self,
+        lon: float,
+        lat: float,
+        region: str = "nl",
+        unit: str = "mm/u"
+    ) -> None:
+        """Initializer."""
         self.lon = lon
         self.lat = lat
         self.region = region
         self.unit = unit
-        self.precipitation = {}
-        self.total = 0
-        self.timeframe = int(timeframe / 5)
-        self.renew = -1
-        self.data = None
 
-    def get_forecast(self):
-        """Get the precipitation forecast"""
-        if self.renew < time.time():
-            self.update()
-        return json.dumps([v for v in self.precipitation.values()])
+        self.updated_at: Optional[datetime] = None
+        self.data: Mapping[str, Any] = {}
 
-    def get_precipitation_now(self):
-        """Get the amount of precipitation on this moment"""
-        if self.renew < time.time():
-            self.update()
-        return self.precipitation[1]
+    @property
+    def temperature(self) -> Optional[float]:
+        """Get the temperature on this moment."""
+        return self.data.get("temp")
 
-    def get_temperature(self):
-        """Get the temperature on this moment"""
-        if self.renew < time.time():
-            self.update()
-        return self.data["temp"]
+    @property
+    def precipitation_now(self) -> Optional[float]:
+        """Get the amount of precipitation on this moment."""
+        for precip in self.precipitation_from_now:
+            return precip.value
+        return None
 
-    def get_precipitation_forecast_total(self):
-        """Get the total expected precipitation within the time-frame"""
-        if self.renew < time.time():
-            self.update()
-        return round(self.total / 12, 2)
+    @property
+    def precipitation_forecast_average(self) -> Optional[float]:
+        """Get the average expected precipitation."""
+        precipitation = self.precipitation
+        if not precipitation:
+            return None
+        return self.precipitation_forecast_total / len(precipitation)
 
-    def get_precipitation_forecast_average(self):
-        """Get the average expected precipitation within the time-frame"""
-        if self.renew < time.time():
-            self.update()
-        return round(self.total / self.timeframe, 2)
+    @property
+    def precipitation_forecast_total(self) -> float:
+        """Get total expected precipitation."""
+        return sum(item[1] for item in self.precipitation)
 
-    def update(self):
-        """Update the buienalarm data"""
-        payload = {
-            "lat": self.lat,
-            "lon": self.lon,
+    @property
+    def levels(self) -> Mapping[str, float]:
+        """Get levels."""
+        return self.data.get("levels", {})
+
+    @property
+    def delta(self) -> timedelta:
+        """Get delta between precipitation values."""
+        delta = self.data.get("delta", 0)
+        return timedelta(seconds=delta)
+
+    @property
+    def precipitation(self) -> List[PrecipitationAt]:
+        """Get precipitation."""
+        start_timestamp = self.data["start"]
+        start = datetime.fromtimestamp(start_timestamp)
+        delta_secs = self.delta.total_seconds()
+        return [
+            PrecipitationAt(start + timedelta(seconds=i * delta_secs), float(val))
+            for i, val in enumerate(self.data.get("precip", []))
+        ]
+
+    @property
+    def precipitation_from_now(self) -> List[PrecipitationAt]:
+        """Get precipitation from now."""
+        now = datetime.now()
+        return [
+            precip for precip in self.precipitation
+            if precip.timestamp >= now
+        ]
+
+    @property
+    def has_data(self) -> bool:
+        """Test if data is available."""
+        return bool(self.data)
+
+    def update(self, timeout: timedelta = API_TIMEOUT) -> None:
+        """
+        Update the buienalarm data.
+
+        Returns a boolean whether data was fetched/updated.
+        Raises exceptions on connection errors and/or json errors.
+        """
+        now = datetime.now()
+
+        # Fetch/store data.
+        self.data = self._fetch_data(timeout)
+
+        # Store update timestamps.
+        self.updated_at = now
+
+    def _fetch_data(self, timeout: timedelta) -> Mapping[str, Any]:
+        """Fetch the data."""
+        params = {
+            "lat": str(self.lat),
+            "lon": str(self.lon),
             "region": self.region,
             "unit": self.unit,
         }
-        try:
-            resp = requests.get(self.__REQUEST_URL, params=payload)
-            LOG.debug(resp.url)
-            if resp.ok:
-                data = resp.json()
-                if data["success"] is False:
-                    LOG.error(data.get("reason"))
-                else:
-                    self.data = data
-            else:
-                LOG.error("Failed to get a response from Buienalarm. Response code: " + str(resp.status_code))
-        except requests.exceptions.RequestException as e:
-            LOG.error(e)
+        resp = requests.get(self.__REQUEST_URL, params=params, timeout=timeout.total_seconds())
+        resp.raise_for_status()
+        _LOGGER.debug("URL: %s, Data: %s", resp.url, resp.text)
 
-        LOG.debug(self.data)
+        data = resp.json()
+        if not data.get("success"):
+            _LOGGER.error("Received failed response, reason: %s", data.get("reason"))
+            return {}
 
-        if self.data is not None:
-            precip = self.data["precip"]
-            self.renew = int(self.data["start"] + 850)
-            t = self.data["start_human"]
-            now = datetime.now()
-            start_data = now.strftime("%Y-%m-%d") + " " + t
-
-            # Avoid bug in Python
-            try:
-                t = datetime.strptime(start_data, "%Y-%m-%d %H:%M")
-            except TypeError:
-                t = datetime(*(time.strptime(start_data, "%Y-%m-%d %H:%M")[0:6]))
-
-            i = 0
-            j = 0
-
-            for p in precip:
-                dt = t + timedelta(minutes=i * 5)
-                i += 1
-                # We are sometimes also getting 'old' data. Skip this!
-                if dt >= now and j < self.timeframe:
-
-                    j += 1
-                    self.precipitation[int(j)] = float(p)
-
-            LOG.debug(self.precipitation)
-
-            self.total = round(sum(p for p in self.precipitation.values()), 2)
+        return data
