@@ -108,20 +108,28 @@ class Buienalarm:
         """Test if data is available."""
         return bool(self.data)
 
-    def update(self, timeout: timedelta = API_TIMEOUT) -> None:
+    def update(self, timeout: timedelta = API_TIMEOUT, safe: bool = False) -> None:
         """
         Update the buienalarm data.
 
-        Returns a boolean whether data was fetched/updated.
         Raises exceptions on connection errors and/or json errors.
         """
         now = datetime.now()
 
         # Fetch/store data.
-        self.data = self._fetch_data(timeout)
+        if safe:
+            data = self._fetch_data_safe(timeout)
+            if not data:
+                # Error fetching data, return so updated_at isn't updated.
+                _LOGGER.debug("Data: %s, updated at: %s", self.data, self.updated_at)
+                return
+            self.data = data
+        else:
+            self.data = self._fetch_data(timeout)
 
         # Store update timestamps.
         self.updated_at = now
+        _LOGGER.debug("Data: %s, updated at: %s", self.data, self.updated_at)
 
     def _fetch_data(self, timeout: timedelta) -> Mapping[str, Any]:
         """Fetch the data."""
@@ -141,3 +149,12 @@ class Buienalarm:
             return {}
 
         return data
+
+    def _fetch_data_safe(self, timeout: timedelta) -> Mapping[str, Any]:
+        """Fetch the data, but don't """
+        try:
+            return self._fetch_data(timeout)
+        except requests.exceptions.RequestException as exc:
+            _LOGGER.warning("Error fetching data safely: %s", exc)
+
+        return {}
